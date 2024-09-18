@@ -119,6 +119,7 @@ UPROGS=\
 	$U/_cat\
 	$U/_echo\
 	$U/_forktest\
+	$U/_getpinfo\
 	$U/_grep\
 	$U/_init\
 	$U/_kill\
@@ -126,8 +127,12 @@ UPROGS=\
 	$U/_ls\
 	$U/_mkdir\
 	$U/_rm\
+	$U/_setColor\
+	$U/_setTickets\
 	$U/_sh\
 	$U/_stressfs\
+	$U/_ps\
+	$U/_test\
 	$U/_usertests\
 	$U/_grind\
 	$U/_wc\
@@ -170,4 +175,3 @@ qemu: $K/kernel fs.img
 qemu-gdb: $K/kernel .gdbinit fs.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-

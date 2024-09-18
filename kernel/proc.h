@@ -80,6 +80,24 @@ struct trapframe {
 };
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+enum COLOR{ RED, ORANGE, YELLOW, GREEN, BLUE, INDIGO, VIOLET };
+
+#ifndef _PSTAT_H_
+#define _PSTAT_H_
+
+#include "param.h"
+
+struct pstat {
+  char name[NPROC][16];        // name of the process
+  enum procstate state[NPROC]; // state of the process   
+  int inuse[NPROC];            // whether this slot of the process table is in use (1 or 0)
+  int tickets[NPROC];          // the number of tickets this process has
+  int pid[NPROC];              // the PID of each process
+  enum COLOR color[NPROC];     // the color of the proces
+  int ticks[NPROC];            // the number of ticks each process has accumulated 
+};
+
+#endif // _PSTAT_H_
 
 // Per-process state
 struct proc {
@@ -91,6 +109,9 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+  enum COLOR color;
+  int numTickets;
+  int ticks;
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

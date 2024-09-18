@@ -7,6 +7,34 @@
 #include "proc.h"
 
 uint64
+sys_getpinfo(void)
+{
+  uint64 p;
+  argaddr(0, &p);
+
+  struct pstat stats;
+  getpinfo(&stats);
+
+  return either_copyout( 1 , p, &stats, sizeof(struct pstat));
+}
+
+uint64
+sys_setTickets(void)
+{
+  int tickets;
+  argint(0, &tickets);
+  return setTickets(tickets);
+}
+
+uint64
+sys_setColor(void)
+{
+  int color;
+  argint(0, &color);
+  return setColor(color);
+}
+
+uint64
 sys_exit(void)
 {
   int n;

@@ -13,6 +13,7 @@ struct proc proc[NPROC];
 struct proc *initproc;
 
 int nextpid = 1;
+unsigned long int s_iSeed = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
@@ -124,6 +125,8 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->color = 0; //Default Color
+  p->numTickets = 1; //Default tickets
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -169,6 +172,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->numTickets = 0;
+  p->color = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -320,6 +325,9 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+
+  //Added parent tickets to child
+  np->numTickets = p->numTickets;
   release(&np->lock);
 
   return pid;
@@ -446,26 +454,43 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+  int hakari;
+
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+    hakari = 0;
+
+    //Add up all the tickets avalible 
+    for(p = proc; p < &proc[NPROC]; p++) {
+      if(p->state == RUNNABLE)
+        hakari += p->numTickets;
+    }
+
+    //Generate random number from 1 to totalTickets
+    int kinji = (rand() % hakari);
+
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+        kinji -= p->numTickets;
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+        if(kinji < 0) {
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          p->ticks += 1;
+          c->proc = 0;
+
+          //Release here since we dont want other processes to run.
+          release(&p->lock);
+          break;
+        }
       }
+
+      //Normal release
       release(&p->lock);
     }
   }
@@ -680,4 +705,70 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int setColor(enum COLOR colorRequest)
+{
+  struct proc *p = myproc();
+  if((colorRequest >= RED) && (colorRequest <= VIOLET))
+  {
+    p->color = colorRequest;
+    return 0;
+  }
+
+  //Fail case
+  return -1;
+}
+
+int setTickets(int ticketRequest)
+{
+  struct proc *p = myproc();
+
+  if((ticketRequest >= 1) && (ticketRequest <= 256))
+  {
+    p->numTickets = ticketRequest;
+    return 0;
+  }
+
+  //Fail case
+  return -1;
+}
+
+int getpinfo(struct pstat *p)
+{
+  if(p == ((void*)0))
+    return -1;
+
+  for(int i = 0; i < NPROC; i++)
+  {
+      //Copy name from proc into pstat
+      for(int j = 0; j < 16; j++)
+      {
+        p->name[i][j] = proc[i].name[j];
+      }
+      
+      if(proc[i].state == UNUSED) p->inuse[i] = 0;
+      else p->inuse[i] = 1;
+
+      p->state[i] = proc[i].state;
+      p->tickets[i] = proc[i].numTickets;
+      p->pid[i] = proc[i].pid;
+      p->color[i] = proc[i].color;
+      p->ticks[i] = proc[i].ticks; 
+  }
+
+  return 0;
+}
+
+void srand(unsigned int seed)
+{
+  s_iSeed = seed;
+}
+
+unsigned int rand()
+{
+  s_iSeed ^= s_iSeed << 13;
+  s_iSeed ^= s_iSeed >> 17;
+  s_iSeed ^= s_iSeed << 5;
+  return s_iSeed;
 }
